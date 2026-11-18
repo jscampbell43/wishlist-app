@@ -178,13 +178,13 @@ function Wishlist() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg shadow-md p-6">
+              <div key={item.id} className="h-64 flex flex-col bg-white rounded-lg shadow-md p-6 w-full">
                 <p className="text-sm text-gray-500 mb-2">Item ID: {item.id}</p>
-                <h3 className="text-xl font-semibold mb-2">{item.name}</h3>
+                <h3 className="text-xl font-semibold mb-2 truncate">{item.name}</h3>
                 {item.link && (
-                  <p className="mb-2">
+                  <p className="mb-2 truncate">
                     Link:{' '}
                     <a
                       href={item.link}
@@ -203,22 +203,26 @@ function Wishlist() {
                     className="max-w-full h-auto mb-2 rounded"
                   />
                 )}
-                <p className="text-gray-600 mb-2">{item.description}</p>
-                <p className="text-sm text-gray-500">List: {item.listName}</p>
-                <button
-                  onClick={() => handleItemUpdate(item)}
-                  className="mr-4 bg-blue-500 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
-                  disabled={loading}
-                >
-                  {loading ? 'Updating...' : 'Update'}
-                </button>
-                <button
-                  onClick={() => handleItemDelete(item)}
-                  className="mr-4 bg-red-500 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  disabled={loading}
-                >
-                  {loading ? 'Deleting Account...' : 'Delete'}
-                </button>
+                <div className="flex-1 overflow-y-auto overflow-x-auto text-gray-600 mb-2 break-words">
+                <p>{item.description}</p>
+                </div>
+                <p className="text-sm text-gray-500 truncate">List: {item.listName}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleItemUpdate(item)}
+                    className="mr-4 bg-blue-500 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={loading}
+                  >
+                    {loading ? 'Updating...' : 'Update'}
+                  </button>
+                  <button
+                    onClick={() => handleItemDelete(item)}
+                    className="bg-red-500 text-white font-bold py-2 px-4 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    disabled={loading}
+                  >
+                    {loading ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
