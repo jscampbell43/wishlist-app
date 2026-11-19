@@ -4,7 +4,7 @@ This file tracks progress and context for Devin sessions working on this project
 
 ---
 
-## Executive Summary (Last Updated: 2026-11-17)
+## Executive Summary (Last Updated: 2026-11-18)
 
 ### Application Classification
 
@@ -226,33 +226,33 @@ This file tracks progress and context for Devin sessions working on this project
 
 ---
 
-### Next Steps
+### Next Steps (Deployment: Railway backend + Vercel frontend)
 
-#### Immediate (To Complete Current Functionality)
-1. **Complete Phase 1 Testing**
-   - Finish edge case testing (special characters, large data, concurrent operations)
-   - Verify all functionality works end-to-end
+Phases 1 (Testing), 2 (Technical Debt) and 3 (Documentation) are complete. The current goal is to deploy the Spring Boot backend on **Railway** and the React frontend on **Vercel**. The project appears to have been renamed from `fa21_groupA_project2` to `wishlist-app` (GitHub repo name); the Java artifact/package is still `Wishlist`.
 
-2. **Phase 3: Documentation**
-   - Create/update README.md with setup instructions
-   - Document API endpoints and usage
-   - Document known limitations and deployment considerations
+Initial prep was committed in `78538d4` ("Getting ready for deployment - Railway"), but these items still block a working deploy:
 
-#### Optional (For Production Readiness)
-3. **Phase 2: Technical Debt**
-   - Fix ItemDAO.addItem() to return proper ID
-   - Code review and refactoring
+1. **Fix `system.properties`**: `java.runtime.version=14` must be `21` (pom.xml targets Java 21).
+2. **Choose the production database**
+   - Option A (simplest): keep SQLite on a Railway persistent volume.
+   - Option B (recommended long term): Railway Postgres plugin. Spring needs a JDBC URL (`jdbc:postgresql://host:port/db`) plus separate username/password variables; Railway's `DATABASE_URL` (`postgresql://user:pass@...`) cannot be used as-is.
+3. **Clean up `application.properties`**: it currently sets `spring.datasource.url`/`driver-class-name` twice (Postgres first, then SQLite, so SQLite wins) and still uses `SQLiteDialect`. Split into profiles:
+   - `application-dev.properties`: SQLite (`jdbc:sqlite:WishlistDatabase.db`, `org.sqlite.JDBC`, `SQLiteDialect`)
+   - `application-prod.properties`: Postgres via env vars (`org.postgresql.Driver`, Postgres dialect)
+   - Activate with `SPRING_PROFILES_ACTIVE=prod` on Railway.
+4. **Railway build/start**: confirm Railway builds with `./mvnw clean package -DskipTests` and the `Procfile` (`java $JAVA_OPTS -jar target/Wishlist-0.0.1-SNAPSHOT.jar`) runs. Add `server.port=${PORT:8080}` so Spring listens on Railway's port.
+5. **Frontend API URL (`frontend/src/services/api.js`)**: `API_BASE_URL` is defined but unused; axios still has `baseURL: ''`. Use `baseURL: import.meta.env.VITE_API_URL || ''` and set `VITE_API_URL` in Vercel (or leave empty if using the rewrite in step 7).
+6. **CORS (`CorsConfig.java`)**: only allows `http://localhost:5173` and `5174`. Add the Vercel URL, ideally read from an env var (e.g. `ALLOWED_ORIGINS`).
+7. **Session cookie across domains**: frontend (`*.vercel.app`) and backend (`*.railway.app`) are different sites, so the `SameSite=Lax` session cookie will not be sent and login won't persist. Pick one:
+   - Recommended: add a `rewrites` entry in `frontend/vercel.json` proxying `/users/*` and `/items/*` to the Railway URL, so the cookie stays first-party (keep `baseURL: ''`). Also add an SPA fallback rewrite to `/index.html` for React Router.
+   - Alternative: set `server.servlet.session.cookie.same-site=none` and `server.servlet.session.cookie.secure=true` (weaker CSRF protection).
+8. **Deploy and verify**: deploy Railway first, then Vercel with Root Directory = `frontend`. On the live URLs, test signup, login, add/update/delete item, edit/delete account, logout, and page refresh (session persists).
+9. **Update docs**: replace old `fa21_groupA_project2` paths in AGENTS.md/README.md and add a Deployment section to README.md with the live URLs and required env vars.
 
-4. **Phase 4: Production Readiness**
-   - Docker configuration
-   - Environment variable management
-   - Production database setup
-   - Logging and monitoring
-
-5. **Phase 5: Final Polish**
-   - UI/UX improvements
-   - Performance optimization
-   - Additional features (admin, list management)
+#### Later (Optional Production Hardening)
+- JWT or full Spring Security with CSRF tokens
+- Logging, health check endpoint, error tracking
+- UI/UX polish, pagination, admin and list-management features
 
 ---
 
@@ -727,6 +727,24 @@ These features should be added after completing all modernization phases (Phases
 - Application is now fully JPA/Hibernate with no native SQL
 - All CRUD operations use standard JPA repository methods
 - Consistent naming conventions throughout the application
+
+---
+
+### Session 2026-11-18 (Legacy Cleanup & Deployment Prep)
+**Goal:** Remove legacy code and prepare for deployment (backend on Railway, frontend on Vercel)
+
+**What Was Done:**
+- Commit `6fd061e`: removed legacy jQuery/HTML files in `src/main/resources/public/`, unused `SecurityConfig.java` and `CustomUserDetailsService.java`, `UserRepository.java`, `schema.sql`, `data.sql`, `ERD.png`, `sitemap.png`, and commented/unused code
+- Commit `78538d4`:
+  - Added `Procfile` (`web: java $JAVA_OPTS -jar target/Wishlist-0.0.1-SNAPSHOT.jar`)
+  - Added `frontend/vercel.json` (build `npm run build`, output `dist`)
+  - Added `org.postgresql:postgresql` runtime dependency to pom.xml
+  - Added `spring.datasource.url=${DATABASE_URL}` and the Postgres driver to application.properties (the SQLite settings are still below and override them)
+  - Added unused `API_BASE_URL` (`VITE_API_URL`) constant in `api.js`
+  - Wishlist.jsx: changed the card grid to a single-column list with a fixed-height scrollable description
+- Project appears to have been renamed from `fa21_groupA_project2` to `wishlist-app` (GitHub repo name)
+
+**Status:** Deployment not yet working. See "Next Steps (Deployment)" in the Executive Summary for the remaining checklist.
 
 ---
 
