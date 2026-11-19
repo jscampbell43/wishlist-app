@@ -178,9 +178,9 @@ function Wishlist() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-4">
             {items.map((item) => (
-              <div key={item.id} className="h-64 flex flex-col bg-white rounded-lg shadow-md p-6 w-full">
+              <div key={item.id} className="flex flex-col bg-white rounded-lg shadow-md p-6 w-full">
                 <p className="text-sm text-gray-500 mb-2">Item ID: {item.id}</p>
                 <h3 className="text-xl font-semibold mb-2 truncate">{item.name}</h3>
                 {item.link && (
@@ -203,7 +203,7 @@ function Wishlist() {
                     className="max-w-full h-auto mb-2 rounded"
                   />
                 )}
-                <div className="flex-1 overflow-y-auto overflow-x-auto text-gray-600 mb-2 break-words">
+                <div className="h-12 overflow-y-auto overflow-x-auto text-gray-600 mb-2 break-words">
                 <p>{item.description}</p>
                 </div>
                 <p className="text-sm text-gray-500 truncate">List: {item.listName}</p>
