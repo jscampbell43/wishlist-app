@@ -15,34 +15,40 @@ public class ItemDB {
     private int id;
 
     // Foreign key referencing the user who owns this item
-    private int user_id;
+    @Column(name = "userId")
+    private int userId;
 
     // Name/title of the wishlist item
     @NotBlank(message = "Item name must not be empty")
+    @Column(name = "name")
     private String name;
 
     // Detailed description of the item
+    @Column(name = "description")
     private String description;
 
     // URL link to the item (e.g., product page)
-    private String item_link;
+    @Column(name = "itemLink")
+    private String itemLink;
 
     // URL to an image of the item
-    private String img_url;
+    @Column(name = "imgUrl")
+    private String imgUrl;
 
     // Name of the wishlist list this item belongs to (for organization)
     @NotBlank(message = "List name must not be empty")
-    private String list_name;
+    @Column(name = "listName")
+    private String listName;
 
 
     // Constructor to create a new item with all fields populated
-    public ItemDB(int user_id, String name, String description, String item_link, String item_url, String list_name) {
-        this.user_id = user_id;
+    public ItemDB(int userId, String name, String description, String itemLink, String itemUrl, String listName) {
+        this.userId = userId;
         this.name = name;
         this.description = description;
-        this.item_link = item_link;
-        this.img_url = item_url;
-        this.list_name = list_name;
+        this.itemLink = itemLink;
+        this.imgUrl = itemUrl;
+        this.listName = listName;
     }
 
     // Default constructor required by JPA/Hibernate
@@ -61,13 +67,13 @@ public class ItemDB {
     }
 
     // Getter for user ID (owner of the item)
-    public int getUser_id() {
-        return user_id;
+    public int getUserId() {
+        return userId;
     }
 
     // Setter for user ID
-    public void setUser_id(int user_id) {
-        this.user_id = user_id;
+    public void setUserId(int user_id) {
+        this.userId = userId;
     }
 
     // Getter for item name
@@ -91,32 +97,32 @@ public class ItemDB {
     }
 
     // Getter for item link URL
-    public String getItem_link() {
-        return item_link;
+    public String getItemLink() {
+        return itemLink;
     }
 
     // Setter for item link URL
-    public void setItem_link(String item_link) {
-        this.item_link = item_link;
+    public void setItemLink(String item_link) {
+        this.itemLink = itemLink;
     }
 
     // Getter for image URL
-    public String getImg_url() {
-        return img_url;
+    public String getImgUrl() {
+        return imgUrl;
     }
 
     // Setter for image URL
-    public void setImg_url(String img_url) {
-        this.img_url = img_url;
+    public void setImgUrl(String img_url) {
+        this.imgUrl = imgUrl;
     }
 
     // Getter for list name
-    public String getList_name() {
-        return list_name;
+    public String getListName() {
+        return listName;
     }
 
     // Setter for list name
-    public void setList_name(String list_name) {
-        this.list_name = list_name;
+    public void setListName(String list_name) {
+        this.listName = listName;
     }
 }

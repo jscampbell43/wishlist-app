@@ -51,10 +51,10 @@ public class ItemController {
                 item.getId(),
                 item.getName(),
                 item.getDescription(),
-                item.getItem_link(),
-                item.getImg_url(),
-                item.getList_name(),
-                item.getUser_id()
+                item.getItemLink(),
+                item.getImgUrl(),
+                item.getListName(),
+                item.getUserId()
             ))
             .collect(Collectors.toList());
         return ResponseEntity.ok(itemResponses);
@@ -69,10 +69,10 @@ public class ItemController {
                 item.getId(),
                 item.getName(),
                 item.getDescription(),
-                item.getItem_link(),
-                item.getImg_url(),
-                item.getList_name(),
-                item.getUser_id()
+                item.getItemLink(),
+                item.getImgUrl(),
+                item.getListName(),
+                item.getUserId()
             ))
             .collect(Collectors.toList());
         return ResponseEntity.ok(itemResponses);
@@ -90,10 +90,10 @@ public class ItemController {
                 item.getId(),
                 item.getName(),
                 item.getDescription(),
-                item.getItem_link(),
-                item.getImg_url(),
-                item.getList_name(),
-                item.getUser_id()
+                item.getItemLink(),
+                item.getImgUrl(),
+                item.getListName(),
+                item.getUserId()
             ))
             .collect(Collectors.toList());
         return ResponseEntity.ok(itemResponses);
@@ -106,23 +106,28 @@ public class ItemController {
             @Valid
             @RequestBody AddItemRequest request
         ){
-            // Store New Item
-            itemDAO.addItem(
-                request.getUserId(),      // uid
-                request.getName(),         // name
-                request.getDescription(),  // description
-                request.getLink(),         // link
-                request.getImage(),        // url
-                request.getListName()      // list
-            );
-            ItemResponse itemResponse = new ItemResponse(
-                0, // Update this after refactoring DAO
+            // Create ItemDB entity from request
+            ItemDB item = new ItemDB(
+                request.getUserId(),
                 request.getName(),
                 request.getDescription(),
                 request.getLink(),
                 request.getImage(),
-                request.getListName(),
-                request.getUserId());
+                request.getListName()
+            );
+            
+            // Save using JPA - this returns the item with the ID populated
+            ItemDB savedItem = itemDAO.save(item);
+            // Create ItemResponse using actual ID
+            ItemResponse itemResponse = new ItemResponse(
+            savedItem.getId(),          // Use the actual ID from JPA save
+            savedItem.getName(),
+            savedItem.getDescription(),
+            savedItem.getItemLink(),
+            savedItem.getImgUrl(),
+            savedItem.getListName(),
+            savedItem.getUserId()
+            );
             return ResponseEntity.status(HttpStatus.CREATED).body(itemResponse);
         }
         
@@ -157,7 +162,7 @@ public class ItemController {
         }
         
         // Ownership check, if item has different userId do not allow update
-        if(existingItem.getUser_id() != authorizedUserId){
+        if(existingItem.getUserId() != authorizedUserId){
             throw new UnauthorizedAccessException(authorizedUserId);
         }
 
@@ -178,10 +183,10 @@ public class ItemController {
             updatedItem.getId(),
             updatedItem.getName(),
             updatedItem.getDescription(),
-            updatedItem.getItem_link(),
-            updatedItem.getImg_url(),
-            updatedItem.getList_name(),
-            updatedItem.getUser_id()
+            updatedItem.getItemLink(),
+            updatedItem.getImgUrl(),
+            updatedItem.getListName(),
+            updatedItem.getUserId()
         );
         // Return Response
         return ResponseEntity.ok(itemResponse);  
@@ -215,7 +220,7 @@ public class ItemController {
             }
 
             // Ownership check, if item has different userId do not allow delete
-            if(itemToDelete.getUser_id() != authorizedUserId){
+            if(itemToDelete.getUserId() != authorizedUserId){
                 throw new UnauthorizedAccessException(authorizedUserId);
             }
 

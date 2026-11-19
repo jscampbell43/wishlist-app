@@ -63,7 +63,7 @@ public class UserController {
     public ResponseEntity<List<UserResponse>> getAllUsers(){
         List<UserDB> users = userDAO.findAll();
         List<UserResponse> userResponses = users.stream()
-            .map(u -> new UserResponse(u.getUser_id(), u.getUsername(), u.getRole()))
+            .map(u -> new UserResponse(u.getUserId(), u.getUsername(), u.getRole()))
             .collect(Collectors.toList());
         return ResponseEntity.ok(userResponses);
     }
@@ -89,7 +89,7 @@ public class UserController {
         if (user == null) {
             throw new UserNotFoundException(username);
         }
-        UserResponse userResponse = new UserResponse(user.getUser_id(), user.getUsername(), user.getRole());
+        UserResponse userResponse = new UserResponse(user.getUserId(), user.getUsername(), user.getRole());
         return ResponseEntity.ok(userResponse);
     }
 
@@ -109,11 +109,20 @@ public class UserController {
         // Hash password before storing
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         String userRole = (request.getRole() == null || request.getRole().isEmpty() ? "USER" : request.getRole());
-        userDAO.insertUser(request.getUsername(), hashedPassword, userRole);
         
-        // Fetch the created user to return in response
-        UserDB createdUser = userDAO.findUserByName(request.getUsername());
-        UserResponse userResponse = new UserResponse(createdUser.getUser_id(), createdUser.getUsername(), createdUser.getRole());
+        UserDB user = new UserDB();
+        user.setUsername(request.getUsername());
+        user.setPassword(hashedPassword);
+        user.setRole(userRole);
+
+        UserDB savedUser = userDAO.save(user);
+        //userDAO.insertUser(request.getUsername(), hashedPassword, userRole);
+        
+        // Use returned savedUser to return in response
+        UserResponse userResponse = new UserResponse(
+            savedUser.getUserId(), 
+            savedUser.getUsername(), 
+            savedUser.getRole());
         return ResponseEntity.status(HttpStatus.CREATED).body(userResponse);
     }
 
@@ -133,7 +142,7 @@ public class UserController {
         }
         if (passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             Authentication authentication = new UsernamePasswordAuthenticationToken(
-                user.getUser_id(),
+                user.getUserId(),
                 user.getUsername(),
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
             );
@@ -141,9 +150,9 @@ public class UserController {
 
             // ALSO store in HttpSession for persistence across requests
             //(This is due to Spring Security not being enabled so we cannot persist SecurityContext)
-            httpRequest.getSession().setAttribute("userId", user.getUser_id());
+            httpRequest.getSession().setAttribute("userId", user.getUserId());
 
-            UserResponse userResponse = new UserResponse(user.getUser_id(), user.getUsername(), user.getRole());
+            UserResponse userResponse = new UserResponse(user.getUserId(), user.getUsername(), user.getRole());
             return ResponseEntity.ok(userResponse);
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -177,7 +186,7 @@ public class UserController {
         if (request.getUsername() != null && !request.getUsername().isEmpty()) {
             // Check if username already exists (excluding current user)
             UserDB existingUser = userDAO.findUserByName(request.getUsername());
-            if (existingUser != null && existingUser.getUser_id() != request.getUserId()) {
+            if (existingUser != null && existingUser.getUserId() != request.getUserId()) {
                 throw new DuplicateUsernameException(request.getUsername());
             }
             user.setUsername(request.getUsername());
@@ -194,7 +203,7 @@ public class UserController {
         
         // Map to response and return
         UserResponse userResponse = new UserResponse(
-            updatedUser.getUser_id(),
+            updatedUser.getUserId(),
             updatedUser.getUsername(),
             updatedUser.getRole()
         );
@@ -220,7 +229,7 @@ public class UserController {
             }
 
             //Delete users items first to prevent orphaned items
-            itemDAO.deleteItemsByUserId(request.getUserId());
+            itemDAO.deleteByUserId(request.getUserId());
 
             // If User exists delete user
             userDAO.delete(user);
