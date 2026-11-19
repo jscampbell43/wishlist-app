@@ -41,17 +41,7 @@ public class UserDB {
     // Default constructor required by JPA/Hibernate
     public UserDB() {
     }
-
-   /* Commented out relationship mapping for user's wishlist items
-   public Set<ItemDB> getUserItems() {
-        return userItems;
-    }
-
-   public void setUserItems(Set<ItemDB> userItems) {
-        this.userItems = userItems;
-    }
-
-   private Set<ItemDB> userItems;*/
+    
     // Getter for user ID
     public int getUserId() {
         return userId;

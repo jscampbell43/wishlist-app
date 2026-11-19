@@ -116,7 +116,6 @@ public class UserController {
         user.setRole(userRole);
 
         UserDB savedUser = userDAO.save(user);
-        //userDAO.insertUser(request.getUsername(), hashedPassword, userRole);
         
         // Use returned savedUser to return in response
         UserResponse userResponse = new UserResponse(

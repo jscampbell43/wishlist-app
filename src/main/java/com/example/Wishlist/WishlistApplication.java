@@ -23,20 +23,4 @@ public class WishlistApplication {
 	public PasswordEncoder passwordEncoder() {
 		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
 	}
-
-	@GetMapping("/")
-	public String home() {
-		return "redirect:/login";
-	}
-
-	@GetMapping("/login")
-	public String login() {
-		return "forward:/customLogin.html";
-	}
-
-	@GetMapping("/hello")
-	@ResponseBody
-	public String hello(@RequestParam(value="name", defaultValue = "World") String  name){
-		return String.format("Hello %s!", name);
-	}
 }
