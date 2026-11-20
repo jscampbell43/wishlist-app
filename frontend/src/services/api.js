@@ -6,7 +6,6 @@ const api = axios.create({
   withCredentials: true // Send session cookies for Spring Security
 })
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // User API calls
 export const userAPI = {

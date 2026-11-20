@@ -224,4 +224,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+#Don't commit database
+*.db
+
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,linux,java,visualstudiocode,jetbrains+all,maven
