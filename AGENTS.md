@@ -4,7 +4,7 @@ This file tracks progress and context for Devin sessions working on this project
 
 ---
 
-## Executive Summary (Last Updated: 2026-11-18)
+## Executive Summary (Last Updated: 2026-11-19)
 
 ### Application Classification
 
@@ -13,7 +13,8 @@ This file tracks progress and context for Devin sessions working on this project
 - **Paradigm:** REST API with Single Page Application (SPA)
 - **Authentication:** Manual session-based authentication with BCrypt password hashing
 - **Authorization:** Ownership-based access control (users can only access their own data)
-- **Database:** SQLite with JPA/Hibernate ORM
+- **Database:** SQLite locally, Neon Postgres in production (JPA/Hibernate ORM)
+- **Hosting:** Frontend on Vercel, backend on Render Free (Docker), database on Neon Free
 
 ---
 
@@ -23,7 +24,7 @@ This file tracks progress and context for Devin sessions working on this project
 - **Language:** Java 21
 - **Framework:** Spring Boot 3.2.0
 - **ORM:** JPA/Hibernate 6.3.1
-- **Database:** SQLite (WishlistDatabase.db)
+- **Database:** SQLite (`WishlistDatabase.db`, `dev` profile) locally; Neon Postgres (`prod` profile) in production
 - **Security:** Spring Security (PasswordEncoder only, web security disabled)
 - **Password Hashing:** BCrypt
 - **API Documentation:** SpringDoc OpenAPI (Swagger UI)
@@ -193,11 +194,10 @@ This file tracks progress and context for Devin sessions working on this project
   - Affects API response quality but not functionality
   - Solutions: Use JPA save() or add separate query for last inserted ID
 
-#### Database
-- **SQLite in Production:** Not recommended for production
-  - Suitable for development and small-scale applications
-  - Production should use PostgreSQL or MySQL
-  - No concurrent write limitations in current usage
+#### Hosting (Free Tiers)
+- **Render Free cold starts:** the backend sleeps after 15 minutes without traffic; the next request takes about 1 minute
+- **Render Free limits:** 512 MB RAM, 750 instance-hours/month, ephemeral filesystem (never store data on disk)
+- **Neon Free limits:** 1 GB storage, 100 compute-hours/month; compute suspends when idle and resumes on the next query
 
 ---
 
@@ -217,37 +217,62 @@ This file tracks progress and context for Devin sessions working on this project
 
 #### Production Readiness (Future)
 - Unit and integration tests
-- Docker containerization
-- Environment-specific profiles (dev/prod)
-- Production database (PostgreSQL/MySQL)
+- ~~Docker containerization~~ (done 2026-11-19)
+- ~~Environment-specific profiles (dev/prod)~~ (done 2026-11-19)
+- ~~Production database (PostgreSQL)~~ (done 2026-11-19, Neon)
 - Logging configuration
 - Error tracking (Sentry or similar)
 - JWT authentication for stateless sessions
 
 ---
 
-### Next Steps (Deployment: Railway backend + Vercel frontend)
+### Deployment (Live: Vercel + Render + Neon)
 
-Phases 1 (Testing), 2 (Technical Debt) and 3 (Documentation) are complete. The current goal is to deploy the Spring Boot backend on **Railway** and the React frontend on **Vercel**. The project appears to have been renamed from `fa21_groupA_project2` to `wishlist-app` (GitHub repo name); the Java artifact/package is still `Wishlist`.
+The app is deployed on free tiers (no trials). Railway was abandoned because its free plan only includes $1/month of usage.
 
-Initial prep was committed in `78538d4` ("Getting ready for deployment - Railway"), but these items still block a working deploy:
+| Part | Host | URL / Location |
+|---|---|---|
+| Frontend (React/Vite) | Vercel | https://wishlist-app-xi-tan.vercel.app (Root Directory `frontend`) |
+| Backend (Spring Boot) | Render Free, Docker, Oregon | https://wishlist-app-api.onrender.com (Swagger: `/swagger-ui.html`) |
+| Database | Neon Free Postgres, `us-west-2` | Project `wishlist-app`, branch `production`, database `neondb` |
 
-1. **Fix `system.properties`**: `java.runtime.version=14` must be `21` (pom.xml targets Java 21).
-2. **Choose the production database**
-   - Option A (simplest): keep SQLite on a Railway persistent volume.
-   - Option B (recommended long term): Railway Postgres plugin. Spring needs a JDBC URL (`jdbc:postgresql://host:port/db`) plus separate username/password variables; Railway's `DATABASE_URL` (`postgresql://user:pass@...`) cannot be used as-is.
-3. **Clean up `application.properties`**: it currently sets `spring.datasource.url`/`driver-class-name` twice (Postgres first, then SQLite, so SQLite wins) and still uses `SQLiteDialect`. Split into profiles:
-   - `application-dev.properties`: SQLite (`jdbc:sqlite:WishlistDatabase.db`, `org.sqlite.JDBC`, `SQLiteDialect`)
-   - `application-prod.properties`: Postgres via env vars (`org.postgresql.Driver`, Postgres dialect)
-   - Activate with `SPRING_PROFILES_ACTIVE=prod` on Railway.
-4. **Railway build/start**: confirm Railway builds with `./mvnw clean package -DskipTests` and the `Procfile` (`java $JAVA_OPTS -jar target/Wishlist-0.0.1-SNAPSHOT.jar`) runs. Add `server.port=${PORT:8080}` so Spring listens on Railway's port.
-5. **Frontend API URL (`frontend/src/services/api.js`)**: `API_BASE_URL` is defined but unused; axios still has `baseURL: ''`. Use `baseURL: import.meta.env.VITE_API_URL || ''` and set `VITE_API_URL` in Vercel (or leave empty if using the rewrite in step 7).
-6. **CORS (`CorsConfig.java`)**: only allows `http://localhost:5173` and `5174`. Add the Vercel URL, ideally read from an env var (e.g. `ALLOWED_ORIGINS`).
-7. **Session cookie across domains**: frontend (`*.vercel.app`) and backend (`*.railway.app`) are different sites, so the `SameSite=Lax` session cookie will not be sent and login won't persist. Pick one:
-   - Recommended: add a `rewrites` entry in `frontend/vercel.json` proxying `/users/*` and `/items/*` to the Railway URL, so the cookie stays first-party (keep `baseURL: ''`). Also add an SPA fallback rewrite to `/index.html` for React Router.
-   - Alternative: set `server.servlet.session.cookie.same-site=none` and `server.servlet.session.cookie.secure=true` (weaker CSRF protection).
-8. **Deploy and verify**: deploy Railway first, then Vercel with Root Directory = `frontend`. On the live URLs, test signup, login, add/update/delete item, edit/delete account, logout, and page refresh (session persists).
-9. **Update docs**: replace old `fa21_groupA_project2` paths in AGENTS.md/README.md and add a Deployment section to README.md with the live URLs and required env vars.
+**How requests flow:**
+```
+Browser ──> Vercel (static React build)
+               │  rewrites /users/* and /items/*  (frontend/vercel.json)
+               ▼
+            Render (Spring Boot, prod profile) ──JDBC/SSL──> Neon Postgres
+```
+- The browser only talks to the Vercel origin, so the `JSESSIONID` cookie (`SameSite=Lax`, `Secure`) stays first-party and CORS is not involved. Axios keeps `baseURL: ''` in `frontend/src/services/api.js`.
+- `vercel.json` also rewrites every other path to `/index.html` so React Router routes survive a refresh.
+- Neon is **not** connected to Vercel; only the backend talks to the database.
+- `https://wishlist-app-api.onrender.com/` returns `{"error":"No static resource ."}` because the backend has no page at `/`. This is expected.
+
+**Configuration files:**
+- `application.properties`: shared settings, `server.port=${PORT:8080}`, `spring.profiles.default=dev`, `ddl-auto=update`
+- `application-dev.properties`: SQLite (`jdbc:sqlite:WishlistDatabase.db`, `SQLiteDialect`), used locally
+- `application-prod.properties`: Postgres from `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`, small Hikari pool (max 5, min idle 0), secure cookie, `app.cors.allowed-origins=${ALLOWED_ORIGINS:}`
+- `CorsConfig.java`: reads `app.cors.allowed-origins` (defaults to `localhost:5173,5174`)
+- `Dockerfile`: Maven + JDK 21 build stage, JRE 21 runtime with `-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k` for 512 MB
+- `.dockerignore`: excludes `target/`, `frontend/`, `*.db`, `.git/`
+- `*.db` is gitignored; `WishlistDatabase.db` is local-only
+
+**Render environment variables** (values live only in Render, never in the repo):
+| Variable | Value |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | `jdbc:postgresql://<neon-host>/neondb?sslmode=require&channelBinding=require` |
+| `DB_USERNAME` | `neondb_owner` |
+| `DB_PASSWORD` | Neon role password (reset in Neon under Roles if exposed) |
+| `ALLOWED_ORIGINS` | `https://wishlist-app-xi-tan.vercel.app` |
+
+Neon's console shows a `postgresql://user:password@host/db?...&channel_binding=require` string. For JDBC, prefix `jdbc:`, move the user/password into the separate variables, and rename `channel_binding` to `channelBinding`.
+
+**Deploys:** pushes to `main` redeploy both Render (Docker build, about 5–10 minutes) and Vercel automatically. Hibernate `ddl-auto=update` creates/updates the Postgres tables on startup.
+
+**Verified 2026-11-19 through the Vercel URL:** signup, login (session cookie persists across requests), add item, list items, delete item, delete account, logout, and direct load of `/wishlist`.
+
+**Remaining:** delete the old Railway project; optional hardening below.
 
 #### Later (Optional Production Hardening)
 - JWT or full Spring Security with CSRF tokens
@@ -744,7 +769,32 @@ These features should be added after completing all modernization phases (Phases
   - Wishlist.jsx: changed the card grid to a single-column list with a fixed-height scrollable description
 - Project appears to have been renamed from `fa21_groupA_project2` to `wishlist-app` (GitHub repo name)
 
-**Status:** Deployment not yet working. See "Next Steps (Deployment)" in the Executive Summary for the remaining checklist.
+**Status:** Superseded by the Render + Neon deployment (see Session 2026-11-19 and "Deployment" in the Executive Summary).
+
+---
+
+### Session 2026-11-19 (Deployment: Vercel + Render + Neon)
+**Goal:** Deploy on permanent free tiers instead of Railway
+
+**Decisions:**
+- Railway deploys failed (likely `system.properties` Java 14 vs pom Java 21) and its free plan is only $1/month of usage
+- Chose Vercel (frontend), Render Free (backend, Docker), Neon Free (Postgres). Render's own free Postgres expires after 30 days; Fly.io has no free tier
+- SQLite cannot be the production DB on Render because the filesystem is ephemeral
+
+**What Was Done (PRs #45, #46):**
+- Split datasource config into `application-dev.properties` (SQLite) and `application-prod.properties` (Postgres via env vars); shared file sets `server.port=${PORT:8080}` and `spring.profiles.default=dev`
+- `CorsConfig.java` reads allowed origins from `app.cors.allowed-origins`
+- Added `Dockerfile` (Java 21, tuned for 512 MB) and `.dockerignore`
+- Removed `Procfile` and `system.properties`; gitignored `*.db` and untracked `WishlistDatabase.db`
+- Removed unused `API_BASE_URL` from `api.js` (keep `baseURL: ''`)
+- `frontend/vercel.json`: rewrites `/users/*` and `/items/*` to `https://wishlist-app-api.onrender.com`, SPA fallback to `/index.html`
+- Created Neon project `wishlist-app`, Render service `wishlist-app-api`, Vercel project (Root Directory `frontend`)
+
+**Status:** Live at https://wishlist-app-xi-tan.vercel.app. Auth and CRUD verified through the Vercel URL.
+
+**Gotchas:**
+- Edit files in `src/main/resources`, not `target/classes` (build output, gitignored, overwritten on build)
+- The local checkout is the inner `wishlist-app\wishlist-app` folder; the outer folder is not a git repo
 
 ---
 
@@ -1859,13 +1909,13 @@ These features should be added after completing all modernization phases (Phases
 ## Build & Run Commands
 **Backend (Spring Boot):**
 ```bash
-cd fa21_groupA_project2
-./mvnw spring-boot:run
+cd wishlist-app
+./mvnw spring-boot:run          # dev profile, SQLite
 ```
 
 **Frontend (React + Vite):**
 ```bash
-cd fa21_groupA_project2/frontend
+cd wishlist-app/frontend
 npm run dev          # Development server with hot reload
 npm run build        # Production build
 npm run preview      # Preview production build

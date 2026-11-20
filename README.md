@@ -11,7 +11,9 @@ Wishlist is a full-stack web application that allows users to:
 - Update and delete items
 - Manage their account settings
 
-The application features a modern React SPA frontend and a Spring Boot REST API backend with SQLite database persistence.
+The application features a modern React SPA frontend and a Spring Boot REST API backend. It uses SQLite for local development and PostgreSQL (Neon) in production.
+
+**Live app:** https://wishlist-app-xi-tan.vercel.app
 
 ## Technology Stack
 
@@ -19,7 +21,7 @@ The application features a modern React SPA frontend and a Spring Boot REST API 
 - **Language:** Java 21
 - **Framework:** Spring Boot 3.2.0
 - **ORM:** JPA/Hibernate 6.3.1
-- **Database:** SQLite (WishlistDatabase.db)
+- **Database:** SQLite locally (`dev` profile), PostgreSQL on Neon in production (`prod` profile)
 - **Security:** BCrypt password hashing
 - **API Documentation:** SpringDoc OpenAPI (Swagger UI)
 - **Build Tool:** Maven with Maven Wrapper
@@ -79,7 +81,7 @@ The application features a modern React SPA frontend and a Spring Boot REST API 
 
 1. **Navigate to the project directory:**
    ```bash
-   cd C:\Users\jscam\OneDrive\Desktop\fa21_groupA_project2\fa21_groupA_project2
+   cd wishlist-app
    ```
 
 2. **Run the Spring Boot application:**
@@ -96,7 +98,7 @@ The application features a modern React SPA frontend and a Spring Boot REST API 
 
 1. **Navigate to the frontend directory:**
    ```bash
-   cd C:\Users\jscam\OneDrive\Desktop\fa21_groupA_project2\fa21_groupA_project2\frontend
+   cd wishlist-app\frontend
    ```
 
 2. **Install dependencies (first time only):**
@@ -119,6 +121,47 @@ The application features a modern React SPA frontend and a Spring Boot REST API 
 - **Backend API:** http://localhost:8080
 - **Swagger UI:** http://localhost:8080/swagger-ui.html
 - **API Docs:** http://localhost:8080/api-docs
+
+## Deployment
+
+The app runs on free tiers:
+
+| Part | Host | URL |
+|---|---|---|
+| Frontend | Vercel | https://wishlist-app-xi-tan.vercel.app |
+| Backend | Render Free (Docker) | https://wishlist-app-api.onrender.com |
+| Database | Neon Free (Postgres) | Neon project `wishlist-app` |
+
+Vercel rewrites `/users/*` and `/items/*` to the Render backend (see `frontend/vercel.json`), so the browser only talks to the Vercel domain and the session cookie works without CORS. Every other path falls back to `index.html` for React Router. The backend has no page at `/`, so opening the Render URL directly shows a "No static resource" error; use the Vercel URL. API docs are at https://wishlist-app-api.onrender.com/swagger-ui.html.
+
+Pushing to `main` redeploys both Render and Vercel automatically.
+
+### Backend (Render)
+- New **Web Service** from this repo, Language **Docker** (uses the root `Dockerfile`), branch `main`, instance type **Free**
+- Environment variables:
+
+| Variable | Value |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | `jdbc:postgresql://<neon-host>/neondb?sslmode=require&channelBinding=require` |
+| `DB_USERNAME` | Neon role (e.g. `neondb_owner`) |
+| `DB_PASSWORD` | Neon role password |
+| `ALLOWED_ORIGINS` | `https://wishlist-app-xi-tan.vercel.app` (optional; only needed for direct cross-origin calls) |
+
+Never commit these values. Hibernate (`ddl-auto=update`) creates the tables on first startup.
+
+### Database (Neon)
+- In the Neon project, click **Connect** to get the connection string
+- Convert it for JDBC: add `jdbc:` in front, move the username and password into `DB_USERNAME`/`DB_PASSWORD`, and rename `channel_binding` to `channelBinding`
+
+### Frontend (Vercel)
+- Import this repo with **Root Directory** `frontend` (Vite preset, build `npm run build`, output `dist`)
+- No environment variables are needed
+- If the Render URL changes, update the rewrite destinations in `frontend/vercel.json`
+
+### Free-tier behavior
+- Render sleeps after 15 minutes without traffic; the first request afterwards takes about 1 minute
+- Neon suspends idle compute and resumes on the next query
 
 ## API Endpoints
 
@@ -149,11 +192,8 @@ For detailed API documentation with request/response examples, visit the Swagger
   - Current implementation provides meaningful defense for development
   - Production deployment should implement JWT or proper Spring Security with CSRF tokens
 
-### Database
-- **SQLite in Production:** Not recommended for production use
-  - Suitable for development and small-scale applications
-  - Production should use PostgreSQL or MySQL
-  - No concurrent write limitations in current usage
+### Hosting
+- **Cold starts:** the Render Free backend sleeps after 15 minutes idle, so the first request can take about 1 minute
 
 ### Technical Debt
 - **ItemDAO.addItem() ID Return:** Returns ID=0 placeholder in response
@@ -165,8 +205,6 @@ For detailed API documentation with request/response examples, visit the Swagger
 - Admin functionality (role-based access control, admin dashboard)
 - List management (create/delete/rename lists)
 - Unit and integration tests
-- Docker containerization
-- Production database (PostgreSQL/MySQL)
 - JWT authentication for stateless sessions
 
 ## Architecture
@@ -194,21 +232,21 @@ For detailed API documentation with request/response examples, visit the Swagger
 
 **Terminal 1 (Backend):**
 ```bash
-cd C:\Users\jscam\OneDrive\Desktop\fa21_groupA_project2\fa21_groupA_project2
+cd wishlist-app
 .\mvnw.cmd spring-boot:run
 ```
 
 **Terminal 2 (Frontend):**
 ```bash
-cd C:\Users\jscam\OneDrive\Desktop\fa21_groupA_project2\fa21_groupA_project2\frontend
+cd wishlist-app\frontend
 npm run dev
 ```
 
 ### Database Queries
 
-To query the SQLite database directly:
+To query the local SQLite database directly (production data is in Neon; use its Tables view or SQL Editor):
 ```bash
-cd C:\Users\jscam\OneDrive\Desktop\fa21_groupA_project2\fa21_groupA_project2
+cd wishlist-app
 sqlite3 WishlistDatabase.db
 ```
 
