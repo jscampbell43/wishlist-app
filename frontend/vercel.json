@@ -1,5 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "devCommand": "npm run dev"
+  "rewrites": [
+    { "source": "/users/:path*", "destination": "https://wishlist-app-api.onrender.com/users/:path*" },
+    { "source": "/items/:path*", "destination": "https://wishlist-app-api.onrender.com/items/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
